@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f9;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+    .chat-window {
+      width: 400px;
+      height: 600px;
+      background-color: #fff;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .chat-header {
+      background-color: #4a90e2;
+      color: #fff;
+      padding: 15px;
+      font-size: 18px;
+      font-weight: bold;
+      text-align: center;
+    }
+    .chat-history {
+      flex: 1;
+      padding: 15px;
+      overflow-y: auto;
+      background-color: #e5ddd5;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .message {
+      margin: 5px 0;
+      padding: 10px 15px;
+      border-radius: 18px;
+      max-width: 75%;
+      display: inline-block;
+      font-size: 14px;
+      line-height: 1.4;
+      word-wrap: break-word;
+    }
+    .user-message {
+      background-color: #fff;
+      align-self: flex-start;
+      text-align: left;
+      border-bottom-left-radius: 2px;
+    }
+    .bot-message {
+      background-color: #4a90e2;
+      color: #fff;
+      align-self: flex-end;
+      text-align: left;
+      border-bottom-right-radius: 2px;
+    }
+    .chat-button {
+      margin: 5px 0;
+      padding: 5px 10px;
+      width: 100%;
+      background-color: #6c757d;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      align-self: flex-start;
+    }
+    .chat-button:hover {
+      background-color: #5a6268;
+    }
+    .input-area {
+      display: flex;
+      border-top: 1px solid #ddd;
+      padding: 10px;
+      background-color: #f4f4f4;
+    }
+    input[type="text"] {
+      flex: 1;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      margin-right: 10px;
+    }
+    button {
+      padding: 10px 20px;
+      background-color: #4a90e2;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #3a70b2;
+    }
+  </style>
+</head>
+<body>
+  <div class="chat-window">
+    <div class="chat-header">AR-Buddy</div>
+    <div class="chat-history" id="chatHistory"></div>
+    <div class="input-area">
+      <input type="text" id="queryInput" placeholder="Enter your name to start" />
+      <button onclick="sendMessage()">Submit</button>
+    </div>
+  </div>
+
+  <script>
+    let isNameSubmitted = false;
+
+    function appendMessage(content, sender, buttons, image) {
+      const chatHistory = document.getElementById("chatHistory");
+      const messageDiv = document.createElement("div");
+      messageDiv.className = "message " + (sender === "user" ? "user-message" : "bot-message");
+      messageDiv.innerHTML = content;
+      chatHistory.appendChild(messageDiv);
+
+      if (image) {
+        const imageEl = document.createElement("img");
+        imageEl.src = image;
+        imageEl.alt = "Spreadsheet ID Guidance";
+        imageEl.style.maxWidth = "100%";
+        imageEl.style.marginTop = "10px";
+        chatHistory.appendChild(imageEl);
+      }
+
+      chatHistory.scrollTop = chatHistory.scrollHeight;
+
+      if (buttons) {
+        buttons.forEach(button => {
+          const buttonEl = document.createElement("button");
+          buttonEl.className = "chat-button";
+          buttonEl.textContent = button.label;
+          buttonEl.onclick = () => {
+            appendMessage(button.label, "user");
+            google.script.run
+              .withSuccessHandler(response => appendMessage(response.message, "bot", response.buttons, response.image))
+              .handleButtonClick(button.action);
+          };
+          chatHistory.appendChild(buttonEl);
+        });
+        chatHistory.scrollTop = chatHistory.scrollHeight;
+      }
+    }
+
+    function sendMessage() {
+      const queryInput = document.getElementById("queryInput");
+      const message = queryInput.value;
+      queryInput.value = "";
+
+      if (!message) return;
+
+      appendMessage(message, "user");
+
+      if (!isNameSubmitted) {
+        google.script.run.withSuccessHandler(response => {
+          hideProcessingAnimation();
+          appendMessage(response.message, "bot", response.buttons);
+        }).handleGreeting(message);
+        isNameSubmitted = true;
+        queryInput.placeholder = "Type a message...";
+        showProcessingAnimation();
+      } else {
+        google.script.run.withSuccessHandler(response => {
+          hideProcessingAnimation();
+          appendMessage(response.message, "bot", response.buttons, response.image);
+        }).handleConversation(message);
+        showProcessingAnimation();
+      }
+    }
+
+    function showProcessingAnimation() {
+      appendMessage("Processing... Please wait.", "bot");
+    }
+
+    function hideProcessingAnimation() {
+      const chatHistory = document.getElementById("chatHistory");
+      const lastMessage = chatHistory.lastElementChild;
+      if (lastMessage && lastMessage.textContent.includes("Processing...")) {
+        chatHistory.removeChild(lastMessage);
+      }
+    }
+  </script>
+</body>
+</html>
